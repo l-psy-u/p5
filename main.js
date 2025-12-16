@@ -2,6 +2,17 @@
 // Alcune forme sono “vuote” (solo contorno) e, dentro, generano frattali random.
 // Usiamo clip/beginClip/endClip per confinare il frattale dentro la forma. :contentReference[oaicite:0]{index=0}
 // Usiamo randomSeed per rendere il frattale stabile finché non cambia seed. :contentReference[oaicite:1]{index=1}
+const EMBEDDED_PNG = 'data/provafinale.png'
+
+let embeddedImg;
+
+function preload() {
+  embeddedImg = loadImage(EMBEDDED_PNG, 
+    () => console.log("PNG caricato:", embeddedImg.width, embeddedImg.height),
+    (e) => console.error("ERRORE loadImage:", e)
+  );
+}
+
 
 const W = 800, H = 800;
 const ROWS = 3, PER_ROW = 11;
@@ -9,6 +20,7 @@ const ROWS = 3, PER_ROW = 11;
 let shapes = [];
 
 function setup() {
+
   createCanvas(W, H);
   angleMode(RADIANS);
 
@@ -46,6 +58,17 @@ function draw() {
     s.render();
   }
 }
+function drawImageInSquare(img, size) {
+  if (!img) return;
+
+  const pad = size * 0.18;      // margine interno
+  const dst = size - pad * 2;   // lato utile
+
+  imageMode(CENTER);
+  // Se vuoi preservare trasparenza/colore, non usare tint().
+  image(img, 0, 0, dst, dst);
+}
+
 
 class MovingShape {
   constructor({ type, x, y, speed, size, hollow, fractal }) {
@@ -82,48 +105,44 @@ class MovingShape {
     }
   }
 
-  render() {
-    push();
-    translate(this.x, this.y);
+render() {
+  push();
+  translate(this.x, this.y);
 
-    // stile contorno/riempimento
-    if (this.hollow) {
-      noFill();
-      stroke(30);
-      strokeWeight(3);
-    } else {
-      noStroke();
-      fill(30);
-    }
-
-    // disegna forma
+  // forma piena
+  if (!this.hollow) {
+    noStroke();
+    fill(30);
     this.drawShapePath(this.size);
-
-    // frattale solo se hollow (o se vuoi anche sui pieni, togli questo if)
-    if (this.fractalEnabled && this.hollow) {
-      // clip alla forma
-      push();
-      // p5 beginClip/endClip definiscono una maschera per ciò che disegni dopo. :contentReference[oaicite:2]{index=2}
-      beginClip();
-      noStroke();
-      this.drawShapePath(this.size * 0.98); // percorso clip leggermente più piccolo
-      endClip();
-
-      // disegna frattale “dentro”
-      randomSeed(this.seed); // stabilizza il pattern finché non cambia seed :contentReference[oaicite:3]{index=3}
-      this.drawTinyFractal(this.size);
-
-      pop();
-
-      // ridisegna il contorno sopra, per pulizia visiva
-      noFill();
-      stroke(30);
-      strokeWeight(3);
-      this.drawShapePath(this.size);
-    }
-
     pop();
+    return;
   }
+
+  // forma vuota + contenuto interno
+  push();
+  beginClip();
+  noStroke();
+  this.drawShapePath(this.size * 0.98);
+  endClip();
+
+  if (this.type === "square" && embeddedImg) {
+    drawImageInSquare(embeddedImg, this.size);
+  } else if (this.fractalEnabled) {
+    randomSeed(this.seed);
+    this.drawTinyFractal(this.size);
+  }
+
+  pop();
+
+  // contorno sopra
+  noFill();
+  stroke(30);
+  strokeWeight(3);
+  this.drawShapePath(this.size);
+
+  pop();
+}
+
 
   drawShapePath(s) {
     if (this.type === "square") {
